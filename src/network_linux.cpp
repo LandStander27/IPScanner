@@ -1,6 +1,5 @@
 #ifndef _WIN32
 	#define LINUX
-#include <cstdio>
 #else
 	#define WINDOWS
 #endif
@@ -32,10 +31,17 @@
 #include <linux/if_ether.h>
 #include <cstdlib>
 #include <linux/if_arp.h>
+#include <cstdio>
 
 void clear_arp_cache() {
-	if (system("ip -s -s neigh flush all > /dev/null")) {
-		exit(1);
+	log_info("Running \"ip -s -s neigh flush all > /dev/null\"\n");
+	int ret;
+	if ((ret = system("ip -s -s neigh flush all > /dev/null")) < 0) {
+		log_panic("Could not run command \"ip -s -s neigh flush all > /dev/null\"");
+	} else if (!WIFEXITED(ret)) {
+		log_panic("Could not clear arp cache");
+	} else if (WEXITSTATUS(ret) != 0) {
+		exit(WEXITSTATUS(ret));
 	}
 }
 
@@ -294,7 +300,7 @@ long long ping(int ip[]) {
 	}
 	
 	if (sizeof(ICMPHeader) > socklen) {
-		log_info("Incorrect ICMP packet size");
+		log_info("Incorrect ICMP packet size\n");
 		return -2;
 	}
 	
@@ -306,7 +312,7 @@ long long ping(int ip[]) {
 		case 0:
 			return delta;
 		case 8:
-			log_info("Recieved ECHO_REQUEST, assuming local device");
+			log_info("Recieved ECHO_REQUEST, assuming local device\n");
 			return -3;
 		case 11:
 			return -1;

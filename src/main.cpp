@@ -267,7 +267,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 	}
 	
 	char interface[16];
-	log_info("Getting source MAC address...");
+	log_info("Getting source MAC address...\n");
 	get_source(interface);
 
 	char path[PATH_MAX];
