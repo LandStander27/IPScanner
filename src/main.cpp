@@ -135,7 +135,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 	// 	output_file = fopen(program.get<std::string>("--output").c_str(), "w");
 	// }
 
-	for (int i = 0; i < workers; i++) {
+	for (unsigned long long i = 0; i < workers; i++) {
 		handles.push_back(IcmpCreateFile());
 	}
 
@@ -147,7 +147,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			return_values.reserve(amount);
 			// long long return_values[workers] = { 0 };
 			if (current+workers < ips.size()) {
-				for (int i = 0; i < workers; i++) {
+				for (unsigned long long i = 0; i < workers; i++) {
 					std::thread t([](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(handle, ip);
 						*mac_addr = get_mac(ip);
@@ -156,7 +156,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 				}
 			} else {
 				unsigned long long start = current;
-				for (int i = 0; i < ips.size()-start; i++) {
+				for (unsigned long long i = 0; i < ips.size()-start; i++) {
 					std::thread t([](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(handle, ip);
 						*mac_addr = get_mac(ip);
@@ -171,12 +171,12 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			
 			threads.clear();
 			
-			for (int i = 0; i < amount; i++) {
+			for (unsigned long long i = 0; i < amount; i++) {
 				fprintf(output_file, "%d.%d.%d.%d", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
 				if (return_values[i].first < 0) {
 					fprintf(output_file, " N/A ");
 				} else {
-					fprintf(output_file, " %dms ", return_values[i].first);
+					fprintf(output_file, " %lldms ", return_values[i].first);
 				}
 				if (return_values[i].second == NULL) {
 					fprintf(output_file, "N/A\n");
@@ -195,7 +195,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			return_values.reserve(amount);
 			// long long return_values[workers] = { 0 };
 			if (current+workers < ips.size()) {
-				for (int i = 0; i < workers; i++) {
+				for (unsigned long long i = 0; i < workers; i++) {
 					std::thread t([](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(handle, ip);
 						*mac_addr = get_mac(ip);
@@ -204,7 +204,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 				}
 			} else {
 				unsigned long long start = current;
-				for (int i = 0; i < ips.size()-start; i++) {
+				for (unsigned long long i = 0; i < ips.size()-start; i++) {
 					std::thread t([](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(handle, ip);
 						*mac_addr = get_mac(ip);
@@ -219,12 +219,12 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			
 			threads.clear();
 			
-			for (int i = 0; i < amount; i++) {
+			for (unsigned long long i = 0; i < amount; i++) {
 				fprintf(output_file, "%d.%d.%d.%d", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
 				if (return_values[i].first < 0) {
 					fprintf(output_file, ",N/A");
 				} else {
-					fprintf(output_file, ",%dms", return_values[i].first);
+					fprintf(output_file, ",%lldms", return_values[i].first);
 				}
 				if (return_values[i].second == NULL) {
 					fprintf(output_file, ",N/A\n");
@@ -271,7 +271,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 	get_source(interface);
 
 	char path[PATH_MAX];
-	int ret;
+	unsigned long ret;
 	if ((ret = snprintf(path, sizeof(path), "/sys/class/net/%s/address", interface)) < 0 && ret >= sizeof(path)) {
 		log_panic("snprintf failed");
 	}
@@ -298,7 +298,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			unsigned long long amount = std::min(ips.size()-current, workers);
 			return_values.reserve(amount);
 			if (current+workers < ips.size()) {
-				for (int i = 0; i < workers; i++) {
+				for (unsigned long long i = 0; i < workers; i++) {
 					std::thread t([](int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(ip);
 						std::this_thread::sleep_for(std::chrono::milliseconds(rand()%1100+100));
@@ -308,7 +308,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 				}
 			} else {
 				unsigned long long start = current;
-				for (int i = 0; i < ips.size()-start; i++) {
+				for (unsigned long long i = 0; i < ips.size()-start; i++) {
 					std::thread t([](int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(ip);
 						std::this_thread::sleep_for(std::chrono::milliseconds(rand()%1100+100));
@@ -324,7 +324,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			
 			threads.clear();
 			
-			for (int i = 0; i < amount; i++) {
+			for (unsigned long long i = 0; i < amount; i++) {
 				long long msec = return_values[i].first;
 				char* mac = return_values[i].second;
 				if (msec < 0 && msec != -3) {
@@ -353,7 +353,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			unsigned long long amount = std::min(ips.size()-current, workers);
 			return_values.reserve(amount);
 			if (current+workers < ips.size()) {
-				for (int i = 0; i < workers; i++) {
+				for (unsigned long long i = 0; i < workers; i++) {
 					std::thread t([](int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(ip);
 						std::this_thread::sleep_for(std::chrono::milliseconds(rand()%1100+100));
@@ -363,7 +363,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 				}
 			} else {
 				unsigned long long start = current;
-				for (int i = 0; i < ips.size()-start; i++) {
+				for (unsigned long long i = 0; i < ips.size()-start; i++) {
 					std::thread t([](int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(ip);
 						std::this_thread::sleep_for(std::chrono::milliseconds(rand()%1100+100));
@@ -379,7 +379,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			
 			threads.clear();
 			
-			for (int i = 0; i < amount; i++) {
+			for (unsigned long long i = 0; i < amount; i++) {
 				long long msec = return_values[i].first;
 				char* mac = return_values[i].second;
 				if (msec < 0 && msec != -3) {

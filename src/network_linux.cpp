@@ -33,30 +33,13 @@
 #include <cstdlib>
 #include <linux/if_arp.h>
 
-// unsigned short checksum(void *b, int len) {
-// 	unsigned short* buf = (unsigned short*)b;
-// 	unsigned int sum = 0;
-// 	unsigned short result;
-
-// 	for (sum = 0; len > 1; len -= 2) {
-// 		sum += *buf++;
-// 	}
-// 	if (len == 1) {
-// 		sum += *(unsigned char *)buf;
-// 	}
-// 	sum = (sum >> 16) + (sum & 0xFFFF);
-// 	sum += (sum >> 16);
-// 	result = ~sum;
-// 	return result;
-// }
-
 void clear_arp_cache() {
 	if (system("ip -s -s neigh flush all > /dev/null")) {
 		exit(1);
 	}
 }
 
-int read_nl_sock(int socket, char *buf, int seq, int pid) {
+int read_nl_sock(int socket, char *buf, unsigned int seq, unsigned int pid) {
 	struct nlmsghdr *nl_hdr;
 	int read_len = 0, msg_len = 0;
 	do {
@@ -127,14 +110,13 @@ void get_source(char* buffer) {
 		struct rtattr* rt_attr = (struct rtattr*)RTM_RTA(rt_msg);
 		int rt_len = RTM_PAYLOAD(nl_msg);
 		int dst = 0;
-		unsigned int source_ip;
 		for (; RTA_OK(rt_attr, rt_len); rt_attr = RTA_NEXT(rt_attr, rt_len)) {
 			switch(rt_attr->rta_type) {
 				case RTA_OIF:
 					if_indextoname(*(int *)RTA_DATA(rt_attr), buffer);
 					break;
-				case RTA_PREFSRC:
-					source_ip = *(u_int *)RTA_DATA(rt_attr);
+				// case RTA_PREFSRC:
+				// 	source_ip = *(u_int *)RTA_DATA(rt_attr);
 				case RTA_DST:
 					dst = *(u_int*)RTA_DATA(rt_attr);
 					break;
@@ -148,120 +130,8 @@ void get_source(char* buffer) {
 	}
 }
 
-// unsigned int interface = 0;
-// char interface_buffer[IF_NAMESIZE] = { 0 };
-// unsigned int source_ip = 0;
-
-// char *ntoa(int addr) {
-// 	static char buffer[18];
-// 	sprintf(buffer, "%d.%d.%d.%d", (addr & 0x000000FF), (addr & 0x0000FF00) >>  8, (addr & 0x00FF0000) >> 16, (addr & 0xFF000000) >> 24);
-// 	return buffer;
-// }
-
-// char* get_mac(int ip[]) {
-
-// 	struct sockaddr_ll device;
-	
-// 	if (interface == 0) {
-// 		get_source(interface_buffer, &source_ip);
-// 		if ((interface = if_nametoindex(interface_buffer)) == 0) {
-// 			log_panic("if_nametoindex failed");
-// 		}
-// 		// log_info("interface: %d, source_ip: %s.\n", interface, ntoa(source_ip));
-// 	}
-// 	memset (&device, 0, sizeof(device));
-// 	device.sll_ifindex = interface;
-
-// 	unsigned char src[6];
-// 	unsigned char dest[6];
-// 	unsigned char ether_frame[IP_MAXPACKET];
-// 	arp_hdr arphdr;
-
-// 	auto temp = socket;
-// 	int socket = temp(AF_INET, SOCK_RAW, IPPROTO_RAW);
-// 	if (socket < 0) {
-// 		log_panic("Could not create socket");
-// 	}
-
-// 	struct ifreq ifr;
-// 	memset (&ifr, 0, sizeof(ifr));
-// 	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface_buffer);
-// 	if (ioctl(socket, SIOCGIFHWADDR, &ifr) < 0) {
-// 		close(socket);
-// 		log_panic("ioctl failed");
-// 	}
-// 	close(socket);
-// 	memcpy(src, ifr.ifr_hwaddr.sa_data, 6 * sizeof(uint8_t));
-// 	// for (int i = 0; i < 5; i++) {
-// 	// 	printf("%02x:", src[i]);
-// 	// }
-// 	// printf("%02x\n", src[5]);
-
-// 	memset(dest, 0xff, 6 * sizeof(uint8_t));
-// 	if (inet_pton(AF_INET, ntoa(source_ip), &arphdr.sender_ip) != 1) {
-// 		log_panic("inet_pton failed");
-// 	}
-// 	if (inet_pton(AF_INET, std::format("{}.{}.{}.{}", ip[0], ip[1], ip[2], ip[3]).c_str(), &arphdr.target_ip) != 1) {
-// 		log_panic("inet_pton failed");
-// 	}
-	
-// 	device.sll_family = AF_PACKET;
-// 	memcpy(device.sll_addr, src, 6 * sizeof(uint8_t));
-// 	device.sll_halen = 6;
-	
-// 	arphdr.htype = htons(1); // does this work without ethernet?
-// 	arphdr.ptype = htons(ETH_P_IP);
-// 	arphdr.hlen = 6;
-// 	arphdr.plen = 4;
-// 	arphdr.opcode = htons(1);
-// 	memcpy(&arphdr.sender_mac, src, 6 * sizeof(uint8_t));
-// 	memset(&arphdr.target_mac, 0, 6 * sizeof(uint8_t));
-	
-// 	int frame_length = 6 + 6 + 2 + 28;
-// 	memcpy(ether_frame, dest, 6 * sizeof(uint8_t));
-// 	memcpy(ether_frame + 6, src, 6 * sizeof(uint8_t));
-	
-// 	ether_frame[12] = ETH_P_ARP / 256;
-// 	ether_frame[13] = ETH_P_ARP % 256;
-	
-// 	memcpy(ether_frame + 14, &arphdr, 28 * sizeof(uint8_t));
-	
-// 	socket = temp(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-// 	if (socket < 0) {
-// 		log_panic("Could not create socket");
-// 	}
-
-// 	if (sendto(socket, ether_frame, frame_length, 0, (struct sockaddr*)&device, sizeof(device)) <= 0) {
-// 		log_panic("sendto failed");
-// 	}
-	
-// 	long int status;
-// 	while (((((ether_frame[12]) << 8) + ether_frame[13]) != ETH_P_ARP) || (ntohs (arphdr.opcode) != 2)) {
-// 		if ((status = recv (socket, ether_frame, IP_MAXPACKET, 0)) < 0) {
-// 			if (errno == EINTR) {
-// 				memset (ether_frame, 0, IP_MAXPACKET * sizeof (uint8_t));
-// 				log_debug("try again");
-// 				continue;  // Something weird happened, but let's try again.
-// 			} else {
-// 				log_panic("recv failed");
-// 			}
-// 		}
-// 	}
-	
-// 	close(socket);
-	
-// 	for (int i = 0; i < 5; i++) {
-// 		printf("%02x:", arphdr.target_mac[i]);
-// 	}
-// 	printf("%02x\n", arphdr.target_mac[5]);
-	
-// 	return nullptr;
-	
-// }
-
 char* get_mac(int ip[]) {
-	
-	struct sockaddr_storage ss;
+
 	FILE* file;
 	if ((file = fopen("/proc/net/arp", "r")) == NULL) {
 		log_panic("Could not open /proc/net/arp");
@@ -335,8 +205,6 @@ static uint16_t checksum(T &packet) {
 	packet.checksum = static_cast<uint16_t>(~sum);
 	return packet.checksum;
 };
-
-// const int datalen = 64-8;
 
 long long ping(int ip[]) {
 	

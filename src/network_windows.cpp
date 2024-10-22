@@ -68,7 +68,7 @@ char* get_mac(int ip[]) {
 	unsigned char* phys_addr = (unsigned char*)&mac_addr;
 	char* str = (char*)malloc(sizeof(char)*18);
 	// return phys_addr;
-	for (int i = 0; i < len; i++) {
+	for (unsigned int i = 0; i < len; i++) {
 		if (i == (len-1)) {
 			sprintf(str+i*3, "%.2X", (int)phys_addr[i]);
 		} else {
