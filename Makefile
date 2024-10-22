@@ -8,6 +8,7 @@ all:
 build:
 	mkdir -p bin
 	g++ -Wall -static-libgcc -static -std=c++20 -o bin/ip_scanner src/*.cpp -I ./include
+	strip ./bin/ip_scanner
 	
 windows:
 	mkdir -p bin
