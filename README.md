@@ -12,6 +12,6 @@
 2. `make windows`
 3. Binary is in `./bin/ip_scanner.exe`
 #### Linux for Linux
-1. Install GCC/G++
+1. Install GCC/G++ for your distro.
 2. `make build`
 3. Binary is in `./bin/ip_scanner`
