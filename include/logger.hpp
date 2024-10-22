@@ -62,6 +62,7 @@ inline void log_error(const char* format, ...) {
 	stdout_lock.unlock();
 }
 
+#ifdef _WIN32
 inline void log_panic(const char* format, ...) {
 	stdout_lock.lock();
 	fprintf(stderr, "PANIC: ");
@@ -73,6 +74,25 @@ inline void log_panic(const char* format, ...) {
 	
 	exit(1);
 }
+#else
+inline void log_panic(const char* format, ...) {
+	stdout_lock.lock();
+	
+	va_list args;
+	va_start(args, format);
+	int len = vsnprintf(NULL, 0, format, args);
+	char* buffer = (char*)malloc((len+1)*sizeof(char));
+	vsnprintf(buffer, len+1, format, args);
+	// vfprintf(stderr, format, args);
+	va_end(args);
+	
+	perror(buffer);
+	free(buffer);
+	
+	exit(1);
+}
+#endif
+
 #else
 inline void log_debug(const char* format, ...) { }
 inline void log_info(const char* format, ...) { }
