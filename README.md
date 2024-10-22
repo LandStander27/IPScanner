@@ -5,7 +5,7 @@
 
 ## Usage
 ### Downloading
-1. Go to latest build action at `https://github.com/LandStander27/IPScanner/actions`.
+1. Go to latest build action at https://github.com/LandStander27/IPScanner/actions.
 2. Download the `linux` or `windows` artifact, depending on your platform.
 3. The binary is contained in the downloaded zip.
 ### Building
