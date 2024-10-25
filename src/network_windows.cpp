@@ -1,5 +1,7 @@
 #ifndef _WIN32
 	#define LINUX
+#include <cstdlib>
+#include <cstring>
 #else
 	#define WINDOWS
 #endif
@@ -78,6 +80,61 @@ char* get_mac(int ip[]) {
 	str[17] = 0;
 	log_debug("%s\n", str);
 	return str;
+}
+
+char* get_local_mac() {
+	
+	long unsigned int addresses_len = 4096;
+	
+	unsigned long int ret;
+	IP_ADAPTER_ADDRESSES* addresses;
+	do {
+		addresses = (IP_ADAPTER_ADDRESSES*)malloc(addresses_len);
+		if (addresses == NULL) {
+			log_panic("Failed to allocate addresses.\n");
+		}
+		ret = GetAdaptersAddresses(AF_INET, 0, NULL, addresses, &addresses_len);
+		if (ret == ERROR_BUFFER_OVERFLOW) {
+			free(addresses);
+			addresses = NULL;
+		}
+	} while (ret == ERROR_BUFFER_OVERFLOW);
+	
+	if (ret != NO_ERROR) {
+		free(addresses);
+		log_panic("GetAdaptersAddresses returned %d.\n", ret);
+	}
+	
+	IP_ADAPTER_ADDRESSES* current = addresses;
+	while (current) {
+		
+		if (current->PhysicalAddressLength != 0) {
+			char* str = (char*)malloc(sizeof(char)*18);
+			for (long unsigned int i = 0; i < current->PhysicalAddressLength; i++) {
+				if (i == (current->PhysicalAddressLength-1)) {
+					sprintf(str+i*3, "%.2X\n", (int)current->PhysicalAddress[i]);
+				} else {
+					sprintf(str+i*3, "%.2X:", (int)current->PhysicalAddress[i]);
+				}
+			}
+			str[17] = 0;
+			free(addresses);
+			return str;
+		}
+		
+		// if (!strcmp(str, mac)) {
+		// 	free(str);
+		// 	return true;
+		// }
+		
+		// free(str);
+		current = current->Next;
+	}
+
+	if (addresses) {
+		free(addresses);
+	}
+	return NULL;
 }
 
 long long ping(HANDLE handle, int ip[]) {

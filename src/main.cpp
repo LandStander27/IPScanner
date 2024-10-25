@@ -1,5 +1,6 @@
 #ifndef _WIN32
 	#define LINUX
+#include <cstring>
 #include <unistd.h>
 #else
 	#define WINDOWS
@@ -118,6 +119,54 @@ std::vector<std::array<int, 4>> get_all_valid_ips(int subnet[], int mask) {
 	return ips;
 }
 
+void print(bool csv, std::vector<std::array<int, 4>>& ips, std::vector<std::pair<long long, char*>>& return_values, unsigned long long amount, unsigned long long current, const char* source_mac, FILE* output_file) {
+	if (csv) {
+		for (unsigned long long i = 0; i < amount; i++) {
+			long long msec = return_values[i].first;
+			char* mac = return_values[i].second;
+			if (msec < 0 && msec != -3) {
+				fprintf(output_file, "%d.%d.%d.%d,N/A", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
+			} else if (msec == -3) {
+				fprintf(output_file, "%d.%d.%d.%d,0ms", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
+			} else {
+				fprintf(output_file, "%d.%d.%d.%d,%lldms", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3], msec);
+			}
+			if (msec != -3) {
+				if (mac != NULL) {
+					fprintf(output_file, ",%s\n", mac);
+				} else {
+					fprintf(output_file, ",N/A\n");
+				}
+				free(mac);
+			} else {
+				fprintf(output_file, ",%s,LOCAL DEVICE\n", source_mac);
+			}
+		}
+	} else {
+		for (unsigned long long i = 0; i < amount; i++) {
+			long long msec = return_values[i].first;
+			char* mac = return_values[i].second;
+			if (msec < 0 && msec != -3) {
+				fprintf(output_file, "%d.%d.%d.%d N/A ", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
+			} else if (msec == -3) {
+				fprintf(output_file, "%d.%d.%d.%d 0ms ", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
+			} else {
+				fprintf(output_file, "%d.%d.%d.%d %lldms ", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3], msec);
+			}
+			if (msec != -3) {
+				if (mac != NULL) {
+					fprintf(output_file, "%s\n", mac);
+				} else {
+					fprintf(output_file, "N/A\n");
+				}
+				free(mac);
+			} else {
+				fprintf(output_file, "%s <---- LOCAL DEVICE\n", source_mac);
+			}
+		}
+	}
+}
+
 #ifdef WINDOWS
 void do_it(unsigned long long workers, const char* output, bool do_csv, std::vector<std::array<int, 4>>& ips) {
 	unsigned long long current = 0;
@@ -125,15 +174,11 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 	std::vector<HANDLE> handles;
 	std::vector<std::thread> threads;
 
-	// unsigned long long workers = program.get<int>("--batches");
-
 	FILE* output_file = stdout;
 	if (output != NULL) {
 		output_file = fopen(output, "w");
 	}
-	// if (program.is_used("--output")) {
-	// 	output_file = fopen(program.get<std::string>("--output").c_str(), "w");
-	// }
+	char* source_mac = get_local_mac();
 
 	for (unsigned long long i = 0; i < workers; i++) {
 		handles.push_back(IcmpCreateFile());
@@ -148,18 +193,24 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			// long long return_values[workers] = { 0 };
 			if (current+workers < ips.size()) {
 				for (unsigned long long i = 0; i < workers; i++) {
-					std::thread t([](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
+					std::thread t([source_mac](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(handle, ip);
 						*mac_addr = get_mac(ip);
+						if (!strcmp(*mac_addr, source_mac)) {
+							*ret_value = -3;
+						}
 					}, handles[i], ips[current++].data(), &return_values[i].first, &return_values[i].second);
 					threads.push_back(std::move(t));
 				}
 			} else {
 				unsigned long long start = current;
 				for (unsigned long long i = 0; i < ips.size()-start; i++) {
-					std::thread t([](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
+					std::thread t([source_mac](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(handle, ip);
 						*mac_addr = get_mac(ip);
+						if (!strcmp(*mac_addr, source_mac)) {
+							*ret_value = -3;
+						}
 					}, handles[i], ips[current++].data(), &return_values[i].first, &return_values[i].second);
 					threads.push_back(std::move(t));
 				}
@@ -170,24 +221,10 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			}
 			
 			threads.clear();
-			
-			for (unsigned long long i = 0; i < amount; i++) {
-				fprintf(output_file, "%d.%d.%d.%d", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
-				if (return_values[i].first < 0) {
-					fprintf(output_file, " N/A ");
-				} else {
-					fprintf(output_file, " %lldms ", return_values[i].first);
-				}
-				if (return_values[i].second == NULL) {
-					fprintf(output_file, "N/A\n");
-				} else {
-					fprintf(output_file, "%s\n", return_values[i].second);
-					free(return_values[i].second);
-				}
-			}
+
+			print(do_csv, ips, return_values, amount, current, source_mac, output_file);
 		}
 	} else {
-		
 		fprintf(output_file, "IP,Round Trip Time,MAC Address\n");
 		while (current < ips.size()) {
 			std::vector<std::pair<long long, char*>> return_values;
@@ -196,46 +233,40 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			// long long return_values[workers] = { 0 };
 			if (current+workers < ips.size()) {
 				for (unsigned long long i = 0; i < workers; i++) {
-					std::thread t([](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
+					std::thread t([source_mac](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(handle, ip);
 						*mac_addr = get_mac(ip);
+						if (!strcmp(*mac_addr, source_mac)) {
+							*ret_value = -3;
+						}
 					}, handles[i], ips[current++].data(), &return_values[i].first, &return_values[i].second);
 					threads.push_back(std::move(t));
 				}
 			} else {
 				unsigned long long start = current;
 				for (unsigned long long i = 0; i < ips.size()-start; i++) {
-					std::thread t([](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
+					std::thread t([source_mac](HANDLE handle, int ip[], long long* ret_value, char** mac_addr) {
 						*ret_value = ping(handle, ip);
 						*mac_addr = get_mac(ip);
+						if (!strcmp(*mac_addr, source_mac)) {
+							*ret_value = -3;
+						}
 					}, handles[i], ips[current++].data(), &return_values[i].first, &return_values[i].second);
 					threads.push_back(std::move(t));
 				}
 			}
-			
+
 			for (auto &i : threads) {
 				i.join();
 			}
-			
 			threads.clear();
-			
-			for (unsigned long long i = 0; i < amount; i++) {
-				fprintf(output_file, "%d.%d.%d.%d", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
-				if (return_values[i].first < 0) {
-					fprintf(output_file, ",N/A");
-				} else {
-					fprintf(output_file, ",%lldms", return_values[i].first);
-				}
-				if (return_values[i].second == NULL) {
-					fprintf(output_file, ",N/A\n");
-				} else {
-					fprintf(output_file, ",%s\n", return_values[i].second);
-					free(return_values[i].second);
-				}
-			}
+
+			print(do_csv, ips, return_values, amount, current, source_mac, output_file);
 		}
 	}
 
+	free(source_mac);
+	
 	for (auto &i: handles) {
 		IcmpCloseHandle(i);
 	}
@@ -246,21 +277,6 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 }
 #else
 void do_it(unsigned long long workers, const char* output, bool do_csv, std::vector<std::array<int, 4>>& ips) {
-	// int sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-	// if (sock <= 0) {
-	// 	log_panic("Could not create socket.\n");
-	// }
-	
-	// unsigned char ttl = 255;
-	// if (setsockopt(sock, SOL_IP, IP_TTL, (char*)&ttl, sizeof(ttl)) != 0) {
-	// 	log_panic("Could not set socket TTL.\n");
-	// }
-	
-	// int flags = fcntl(sock, 3, 0);
-	// if ((flags == -1) || fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1) {
-	// 	log_panic("Could not set socket options.\n");
-	// }
-	
 	FILE* output_file = stdout;
 	if (output != NULL) {
 		output_file = fopen(output, "w");
@@ -323,28 +339,8 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			}
 			
 			threads.clear();
-			
-			for (unsigned long long i = 0; i < amount; i++) {
-				long long msec = return_values[i].first;
-				char* mac = return_values[i].second;
-				if (msec < 0 && msec != -3) {
-					fprintf(output_file, "%d.%d.%d.%d N/A ", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
-				} else if (msec == -3) {
-					fprintf(output_file, "%d.%d.%d.%d 0ms ", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
-				} else {
-					fprintf(output_file, "%d.%d.%d.%d %lldms ", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3], msec);
-				}
-				if (msec != -3) {
-					if (mac != NULL) {
-						fprintf(output_file, "%s\n", mac);
-					} else {
-						fprintf(output_file, "N/A\n");
-					}
-					free(mac);
-				} else {
-					fprintf(output_file, "%s <---- LOCAL DEVICE\n", source_mac);
-				}
-			}
+
+			print(do_csv, ips, return_values, amount, current, source_mac, output_file);
 		}
 	} else {
 		fprintf(output_file, "IP,RoundTripTime,MACAddress\n");
@@ -376,54 +372,11 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 			for (auto &i : threads) {
 				i.join();
 			}
-			
 			threads.clear();
 			
-			for (unsigned long long i = 0; i < amount; i++) {
-				long long msec = return_values[i].first;
-				char* mac = return_values[i].second;
-				if (msec < 0 && msec != -3) {
-					fprintf(output_file, "%d.%d.%d.%d,N/A", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
-				} else if (msec == -3) {
-					fprintf(output_file, "%d.%d.%d.%d,0ms", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3]);
-				} else {
-					fprintf(output_file, "%d.%d.%d.%d,%lldms", ips[current-(amount-i)][0], ips[current-(amount-i)][1], ips[current-(amount-i)][2], ips[current-(amount-i)][3], msec);
-				}
-				if (msec != -3) {
-					if (mac != NULL) {
-						fprintf(output_file, ",%s\n", mac);
-					} else {
-						fprintf(output_file, ",N/A\n");
-					}
-					free(mac);
-				} else {
-					fprintf(output_file, ",%s,LOCAL DEVICE\n", source_mac);
-				}
-			}
+			print(do_csv, ips, return_values, amount, current, source_mac, output_file);
 		}
 	}
-	
-	// for (auto& i : ips) {
-	// 	long long msec = ping(i.data());
-	// 	if (msec < 0 && msec != -3) {
-	// 		fprintf(output_file, "%d.%d.%d.%d N/A ", i[0], i[1], i[2], i[3]);
-	// 	} else if (msec == -3) {
-	// 		fprintf(output_file, "%d.%d.%d.%d 0ms ", i[0], i[1], i[2], i[3]);
-	// 	} else {
-	// 		fprintf(output_file, "%d.%d.%d.%d %lldms ", i[0], i[1], i[2], i[3], msec);
-	// 	}
-	// 	if (msec != -3) {
-	// 		char* mac = get_mac(i.data());
-	// 		if (mac != NULL) {
-	// 			fprintf(output_file, "%s\n", mac);
-	// 		} else {
-	// 			fprintf(output_file, "N/A\n");
-	// 		}
-	// 		free(mac);
-	// 	} else {
-	// 		fprintf(output_file, "%s <---- LOCAL DEVICE\n", source_mac);
-	// 	}
-	// }
 }
 #endif
 
@@ -457,11 +410,8 @@ int main(int argc, char** argv) {
 	
 	int subnet[4];
 	extract_nums_from_ip(subnet, program.get<std::string>("--subnet").c_str());
-	
+
 	std::vector<std::array<int, 4>> ips = get_all_valid_ips(subnet, get_mask(program.get<std::string>("--subnet").c_str())/8);
-	// for (auto i : ips) {
-	// 	print_each("ip", i, 4, "%d");
-	// }
 
 	unsigned long long workers = program.get<int>("--batches");
 	std::optional<std::string> output = std::nullopt;

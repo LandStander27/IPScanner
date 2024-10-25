@@ -12,7 +12,6 @@
 
 #include <chrono>
 #include <string>
-#include <thread>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
