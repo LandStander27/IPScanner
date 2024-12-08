@@ -17,7 +17,7 @@ jobs:
 
     steps:
     - name: Install deps
-      run: pacman --noconfirm -Sy make git gcc nodejs
+      run: pacman --noconfirm -Sy make git gcc nodejs mingw-w64-gcc
 
     - uses: actions/checkout@v4
     - name: Build Linux
