@@ -20,7 +20,7 @@
 1. Install deps
 	* Arch Linux: `pacman -S make git gcc`
 2. `git clone https://github.com/LandStander27/IPScanner && cd IPScanner`.
-3. `make windows`
+3. `make build`
 4. Binary is in `./bin/ip_scanner`
 
 #### Docker

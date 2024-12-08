@@ -1,0 +1,39 @@
+name: Build Check
+
+on:
+  push:
+    branches: [ "master" ]
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+      - 'LICENSE'
+
+jobs:
+  build:
+    name: Build Check
+    runs-on: docker
+    container:
+      image: archlinux:latest
+
+    steps:
+    - name: Install deps
+      run: sudo pacman --noconfirm -Sy git gcc nodejs
+
+    - uses: actions/checkout@v4
+    - name: Build Linux
+      run: make build
+
+    - name: Build Windows
+      run: make windows
+
+    - name: Upload Linux Artifact
+      uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+      with:
+        name: linux.zip
+        path: ./bin/ip_scanner
+
+    - name: Upload Windows Artifact
+      uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+      with:
+        name: windows.zip
+        path: ./bin/ip_scanner.exe
