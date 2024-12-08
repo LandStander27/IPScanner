@@ -17,7 +17,7 @@ jobs:
 
     steps:
     - name: Install deps
-      run: sudo pacman --noconfirm -Sy git gcc nodejs
+      run: pacman --noconfirm -Sy git gcc nodejs
 
     - uses: actions/checkout@v4
     - name: Build Linux
