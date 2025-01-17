@@ -35,6 +35,7 @@
 
 // local includes
 #include <logger.hpp>
+#include <info.hpp>
 #include <argparse/argparse.hpp>
 
 #ifdef WINDOWS
@@ -381,7 +382,7 @@ void do_it(unsigned long long workers, const char* output, bool do_csv, std::vec
 #endif
 
 int main(int argc, char** argv) {
-	argparse::ArgumentParser program(program_name);
+	argparse::ArgumentParser program(program_name, version);
 	
 	#ifdef DEBUG
 	program.add_argument("-v", "--verbose").help("increase output verbosity").default_value(false).implicit_value(true);
